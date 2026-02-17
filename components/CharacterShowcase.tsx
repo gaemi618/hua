@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { CHARACTERS } from '../constants';
 import { Character } from '../types';
 import { Lock, Unlock, Sparkles, AlertCircle } from 'lucide-react';
@@ -6,13 +6,50 @@ import { Lock, Unlock, Sparkles, AlertCircle } from 'lucide-react';
 const CharacterCard: React.FC<{ character: Character; isHero?: boolean }> = ({ character, isHero = false }) => {
   const [showInner, setShowInner] = useState(false);
   const [easterEggFound, setEasterEggFound] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
+  const [isHorrorMode, setIsHorrorMode] = useState(false);
+  const [currentMessage, setCurrentMessage] = useState("");
+  
+  // Ref for click cooldown
+  const lastClickTime = useRef<number>(0);
 
-  // 이스터에그: 후천화의 이미지를 클릭했을 때
+  const tianhuaMessages = [
+    "어딜 만지는 거야? ...조금 더 해도 돼.", // Click 1
+    "후훗... 당신 꽤 적극적이네?", // Click 2
+    "거기... 예민한 곳이야. 조심해.", // Click 3
+    "이제 슬슬... 그만하는 게 좋을 텐데." // Click 4 (Warning)
+  ];
+
   const handleImageClick = (e: React.MouseEvent) => {
     if (character.id === 'tianhua') {
-      // 이미지의 특정 영역을 누른 효과를 내기 위해 단순 클릭으로 구현
-      setEasterEggFound(true);
-      setTimeout(() => setEasterEggFound(false), 3000);
+      const now = Date.now();
+      // 0.8s cooldown to prevent spam clicking
+      if (now - lastClickTime.current < 800) {
+        return;
+      }
+      lastClickTime.current = now;
+
+      const newCount = clickCount + 1;
+      setClickCount(newCount);
+
+      if (newCount >= 5) {
+        // Horror Mode Trigger
+        setIsHorrorMode(true);
+        setCurrentMessage("그만하라고 했잖아! 넌 내가 그렇게 우스워!!?");
+        
+        // Reset after 3 seconds
+        setTimeout(() => {
+          setIsHorrorMode(false);
+          setClickCount(0);
+          setEasterEggFound(false);
+        }, 3000);
+      } else {
+        // Progressive messages
+        setCurrentMessage(tianhuaMessages[newCount - 1] || tianhuaMessages[0]);
+        setEasterEggFound(true);
+        // Hide message bubble after 2s if not horror mode
+        setTimeout(() => setEasterEggFound(false), 2000);
+      }
     }
   };
 
@@ -26,40 +63,70 @@ const CharacterCard: React.FC<{ character: Character; isHero?: boolean }> = ({ c
              {/* Height adjustment based on Hero status */}
             <div className={`${isHero ? 'h-[500px] md:h-[600px]' : 'h-[400px]'} w-full`}>
               <img 
-                src={character.image} 
+                src={isHorrorMode ? 'https://i.postimg.cc/RVqXSVTQ/michincheonhwa.png' : character.image} 
                 alt={character.name} 
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 filter grayscale-[30%] group-hover:grayscale-0"
+                referrerPolicy="no-referrer"
+                className={`w-full h-full object-cover transition-transform duration-700 
+                  ${isHorrorMode ? 'animate-shake scale-110 contrast-150 brightness-75' : 'group-hover:scale-105 filter grayscale-[30%] group-hover:grayscale-0'}`}
               />
             </div>
-            <div className={`absolute inset-0 bg-gradient-to-t ${character.color} opacity-30 mix-blend-multiply`} />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90" />
+            
+            {/* Gradients */}
+            {!isHorrorMode && (
+              <>
+                <div className={`absolute inset-0 bg-gradient-to-t ${character.color} opacity-30 mix-blend-multiply`} />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90" />
+              </>
+            )}
+
+            {/* Red Overlay in Horror Mode */}
+            {isHorrorMode && (
+               <div className="absolute inset-0 bg-red-900/40 mix-blend-overlay pointer-events-none animate-pulse"></div>
+            )}
             
             {/* Identity Tag */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+            <div className={`absolute bottom-0 left-0 right-0 p-6 md:p-8 ${isHorrorMode ? 'animate-shake' : ''}`}>
               <p className={`text-xs tracking-[0.3em] uppercase mb-2 ${isHero ? 'text-tianhua-gold' : 'text-gray-500'}`}>
                 {isHero ? 'The Protagonist' : 'Supporting Role'}
               </p>
-              <h3 className={`font-display text-white ${isHero ? 'text-4xl md:text-5xl' : 'text-2xl'}`}>
+              <h3 className={`font-display text-white ${isHero ? 'text-4xl md:text-5xl' : 'text-2xl'} ${isHorrorMode ? 'text-red-600 blur-[1px]' : ''}`}>
                 {character.name}
               </h3>
               <p className="text-gray-400 text-sm tracking-wider mt-2 font-serif">{character.role}</p>
             </div>
 
             {/* Easter Egg Overlay for Tianhua */}
-            {easterEggFound && character.id === 'tianhua' && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out] z-20">
-                <div className="text-center p-6 border border-tianhua-gold/50 rounded-lg">
-                  <Sparkles className="text-tianhua-gold mx-auto mb-2" size={24} />
-                  <p className="text-tianhua-gold font-serif italic">"어딜 만지는 거야? ...조금 더 해도 돼."</p>
-                  <p className="text-xs text-gray-500 mt-2 tracking-widest">[SECRET UNLOCKED]</p>
+            {(easterEggFound || isHorrorMode) && character.id === 'tianhua' && (
+              <div className="absolute inset-0 flex items-end justify-center z-20 pointer-events-none pb-20">
+                <div className={`text-center p-6 border rounded-lg max-w-[90%] mx-4 backdrop-blur-md shadow-2xl transition-all duration-300
+                  ${isHorrorMode 
+                    ? 'border-red-600 bg-black/90 animate-shake' 
+                    : 'border-tianhua-gold/50 bg-black/80 animate-[fadeIn_0.2s_ease-out]'}`
+                }>
+                  
+                  {isHorrorMode ? (
+                     <AlertCircle className="text-red-600 mx-auto mb-2 animate-bounce" size={32} />
+                  ) : (
+                     <Sparkles className="text-tianhua-gold mx-auto mb-2" size={24} />
+                  )}
+
+                  <p className={`font-serif italic text-lg ${isHorrorMode ? 'text-red-500 font-bold tracking-widest' : 'text-tianhua-gold'}`}>
+                    "{currentMessage}"
+                  </p>
+                  
+                  {!isHorrorMode && (
+                    <p className="text-xs text-gray-500 mt-2 tracking-widest">
+                      [TOUCH COUNT: {clickCount}/5]
+                    </p>
+                  )}
                 </div>
               </div>
             )}
             
             {/* Click hint for Tianhua */}
-            {character.id === 'tianhua' && !easterEggFound && (
+            {character.id === 'tianhua' && !easterEggFound && !isHorrorMode && (
               <div className="absolute top-4 right-4 animate-pulse opacity-0 group-hover:opacity-100 transition-opacity">
-                 <span className="text-[10px] text-white/50 border border-white/20 px-2 py-1 rounded-full">Click Me</span>
+                 <span className="text-[10px] text-white/50 border border-white/20 px-2 py-1 rounded-full hover:bg-white/10">Touch Me</span>
               </div>
             )}
           </div>

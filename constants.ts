@@ -43,7 +43,7 @@ export const CHARACTERS: Character[] = [
       likes: ['질서', '복종', '체면'],
       dislikes: ['무질서', '반항', '실패'],
       personality: {
-        surface: '자상한 남편이자 성공한 기업가.',
+        surface: '천화를 철저히 이용하는 계산적인 남편이자 성공한 기업가.',
         inner: '인간의 감정을 이해하지 못하며 타인을 체스 말로만 보는 냉혈한.'
       },
       quotes: [
